@@ -138,7 +138,7 @@ npm run docker:down
 | Appointment Service | 5001 |
 | MongoDB | 27017 |
 
-The backend Express app connects to MongoDB on startup. Models: `User`, `Patient`, `MedicalRecord`. JWT auth and RBAC are available under `/auth` (Phase 4). Frontend and appointment-service still use Phase 1 stubs until later phases.
+The backend Express app connects to MongoDB on startup. Models: `User`, `Patient`, `MedicalRecord`. JWT auth, RBAC, patients, medical records, and dashboard statistics are available (Phases 3–5). Frontend and appointment-service still use Phase 1 stubs until later phases.
 
 ### Auth endpoints
 
@@ -150,7 +150,18 @@ The backend Express app connects to MongoDB on startup. Models: `User`, `Patient
 | `GET` | `/auth/profile` | Authenticated |
 | `PATCH` | `/auth/change-password` | Authenticated |
 
-Send `Authorization: Bearer <token>` on protected routes.
+### Domain endpoints
+
+| Method | Path | Access |
+|--------|------|--------|
+| `GET/POST` | `/patients` | All staff list; Admin/Doctor create |
+| `GET/PUT/DELETE` | `/patients/:id` | All staff get; Admin/Doctor mutate |
+| `PATCH` | `/patients/:id/status` | Admin, Doctor, Nurse |
+| `GET/POST` | `/records` | All staff list; Admin/Doctor create |
+| `GET/PUT/DELETE` | `/records/:id` | All staff get; Admin/Doctor mutate |
+| `GET` | `/dashboard/statistics` | Admin, Doctor, Nurse |
+
+Send `Authorization: Bearer <token>` on protected routes. List endpoints support `page`, `limit`, `search`/`status` (patients), and `patientId` (records).
 
 ### Run the backend locally
 
@@ -177,8 +188,8 @@ curl http://localhost:5000/health
 | **2** | Backend foundation: Express, MVC folders, health, errors, logging | Done |
 | **3** | Database models (User, Patient, MedicalRecord) | Done |
 | **4** | Authentication & authorization (JWT, RBAC) | Done |
-| **5** | Backend API: patients, records, dashboard | Next |
-| **6** | Appointment microservice | Planned |
+| **5** | Backend API: patients, records, dashboard | Done |
+| **6** | Appointment microservice | Next |
 | **7** | Frontend foundation (Vite, routing, auth, React Query) | Planned |
 | **8** | Frontend features (dashboards, CRUD UI, optimistic updates) | Planned |
 | **9** | Seed script, unit & integration tests | Planned |
