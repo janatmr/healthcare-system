@@ -138,7 +138,19 @@ npm run docker:down
 | Appointment Service | 5001 |
 | MongoDB | 27017 |
 
-The backend Express app connects to MongoDB on startup (Phase 3). Models: `User`, `Patient`, `MedicalRecord`. Frontend and appointment-service still use Phase 1 stubs until later phases.
+The backend Express app connects to MongoDB on startup. Models: `User`, `Patient`, `MedicalRecord`. JWT auth and RBAC are available under `/auth` (Phase 4). Frontend and appointment-service still use Phase 1 stubs until later phases.
+
+### Auth endpoints
+
+| Method | Path | Access |
+|--------|------|--------|
+| `POST` | `/auth/login` | Public |
+| `POST` | `/auth/logout` | Authenticated |
+| `POST` | `/auth/register` | Admin (or first Admin bootstrap when DB has no users) |
+| `GET` | `/auth/profile` | Authenticated |
+| `PATCH` | `/auth/change-password` | Authenticated |
+
+Send `Authorization: Bearer <token>` on protected routes.
 
 ### Run the backend locally
 
@@ -164,8 +176,8 @@ curl http://localhost:5000/health
 | **1** | Monorepo skeleton, workspaces, Docker Compose, env templates, README | Done |
 | **2** | Backend foundation: Express, MVC folders, health, errors, logging | Done |
 | **3** | Database models (User, Patient, MedicalRecord) | Done |
-| **4** | Authentication & authorization (JWT, RBAC) | Next |
-| **5** | Backend API: patients, records, dashboard | Planned |
+| **4** | Authentication & authorization (JWT, RBAC) | Done |
+| **5** | Backend API: patients, records, dashboard | Next |
 | **6** | Appointment microservice | Planned |
 | **7** | Frontend foundation (Vite, routing, auth, React Query) | Planned |
 | **8** | Frontend features (dashboards, CRUD UI, optimistic updates) | Planned |
@@ -179,7 +191,7 @@ curl http://localhost:5000/health
 
 - Secrets and connection strings come from environment variables only
 - `.env` is gitignored; only `.env.example` templates are committed
-- User passwords are hashed with bcrypt on save; JWTs will use `JWT_SECRET` (Phase 4)
+- User passwords are hashed with bcrypt on save; JWTs use `JWT_SECRET` / `JWT_EXPIRES_IN`
 - CORS will use an allowlist (never open CORS globally)
 
 ## License

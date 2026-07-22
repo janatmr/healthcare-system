@@ -18,6 +18,7 @@ const config = {
   isProduction,
   mongodbUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/healthcare',
   jwtSecret: jwtSecret || 'dev-only-change-me',
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '8h',
   appointmentServiceUrl:
     process.env.APPOINTMENT_SERVICE_URL || 'http://localhost:5001',
   corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:3000')
