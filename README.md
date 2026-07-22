@@ -138,15 +138,24 @@ npm run docker:down
 | Appointment Service | 5001 |
 | MongoDB | 27017 |
 
-Phase 1 containers expose lightweight health stubs. Full application endpoints arrive in later phases.
+The backend Express app is live in Phase 2 (`GET /health`). Frontend and appointment-service still use Phase 1 stubs until later phases.
+
+### Run the backend locally
+
+```bash
+cp backend/.env.example backend/.env
+npm run start:backend
+# or with reload: npm run dev:backend
+curl http://localhost:5000/health
+```
 
 ## Development Roadmap
 
 | Phase | Focus | Status |
 |-------|--------|--------|
-| **1** | Monorepo skeleton, workspaces, Docker Compose, env templates, README | Current |
-| **2** | Backend foundation: Express, MVC folders, health, errors, logging | Next |
-| **3** | Database models (User, Patient, MedicalRecord) | Planned |
+| **1** | Monorepo skeleton, workspaces, Docker Compose, env templates, README | Done |
+| **2** | Backend foundation: Express, MVC folders, health, errors, logging | Done |
+| **3** | Database models (User, Patient, MedicalRecord) | Next |
 | **4** | Authentication & authorization (JWT, RBAC) | Planned |
 | **5** | Backend API: patients, records, dashboard | Planned |
 | **6** | Appointment microservice | Planned |
