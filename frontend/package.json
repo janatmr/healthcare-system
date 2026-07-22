@@ -1,0 +1,12 @@
+{
+  "name": "frontend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Hospital Management System — React frontend",
+  "scripts": {
+    "dev": "echo \"Frontend not scaffolded yet\" && exit 0",
+    "build": "echo \"Frontend not scaffolded yet\" && exit 0",
+    "preview": "echo \"Frontend not scaffolded yet\" && exit 0",
+    "test": "echo \"No tests yet\" && exit 0"
+  }
+}

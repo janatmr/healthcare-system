@@ -1,0 +1,19 @@
+{
+  "name": "healthcare-system",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Enterprise Hospital Management System monorepo",
+  "workspaces": [
+    "backend",
+    "frontend",
+    "microservices/appointment-service"
+  ],
+  "scripts": {
+    "install:all": "npm install",
+    "docker:up": "docker compose -f infra/docker-compose.yml up --build",
+    "docker:down": "docker compose -f infra/docker-compose.yml down"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
