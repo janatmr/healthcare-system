@@ -138,12 +138,20 @@ npm run docker:down
 | Appointment Service | 5001 |
 | MongoDB | 27017 |
 
-The backend Express app is live in Phase 2 (`GET /health`). Frontend and appointment-service still use Phase 1 stubs until later phases.
+The backend Express app connects to MongoDB on startup (Phase 3). Models: `User`, `Patient`, `MedicalRecord`. Frontend and appointment-service still use Phase 1 stubs until later phases.
 
 ### Run the backend locally
 
+MongoDB must be running before the backend starts.
+
 ```bash
+# Start MongoDB only
+docker compose -f infra/docker-compose.yml up -d mongodb
+
 cp backend/.env.example backend/.env
+# For local (non-Docker) runs, set:
+# MONGODB_URI=mongodb://localhost:27017/healthcare
+
 npm run start:backend
 # or with reload: npm run dev:backend
 curl http://localhost:5000/health
@@ -155,8 +163,8 @@ curl http://localhost:5000/health
 |-------|--------|--------|
 | **1** | Monorepo skeleton, workspaces, Docker Compose, env templates, README | Done |
 | **2** | Backend foundation: Express, MVC folders, health, errors, logging | Done |
-| **3** | Database models (User, Patient, MedicalRecord) | Next |
-| **4** | Authentication & authorization (JWT, RBAC) | Planned |
+| **3** | Database models (User, Patient, MedicalRecord) | Done |
+| **4** | Authentication & authorization (JWT, RBAC) | Next |
 | **5** | Backend API: patients, records, dashboard | Planned |
 | **6** | Appointment microservice | Planned |
 | **7** | Frontend foundation (Vite, routing, auth, React Query) | Planned |
@@ -171,7 +179,7 @@ curl http://localhost:5000/health
 
 - Secrets and connection strings come from environment variables only
 - `.env` is gitignored; only `.env.example` templates are committed
-- Passwords will be hashed with bcrypt; JWTs will use `JWT_SECRET`
+- User passwords are hashed with bcrypt on save; JWTs will use `JWT_SECRET` (Phase 4)
 - CORS will use an allowlist (never open CORS globally)
 
 ## License
