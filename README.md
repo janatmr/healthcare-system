@@ -200,6 +200,31 @@ curl http://localhost:5000/health
 curl http://localhost:5001/health
 ```
 
+### Seed data
+
+With MongoDB running:
+
+```bash
+npm run seed
+```
+
+Creates 1 Admin, 3 Doctors, 2 Nurses, 20 Patients, 20 Medical Records, and 15 Appointments (collections are cleared first — safe to re-run).
+
+| Email | Role | Password |
+|-------|------|----------|
+| `admin@hospital.local` | Admin | `Password123!` |
+| `doctor1@hospital.local` … `doctor3@hospital.local` | Doctor | `Password123!` |
+| `nurse1@hospital.local`, `nurse2@hospital.local` | Nurse | `Password123!` |
+
+### Tests
+
+```bash
+npm test                      # backend + appointment-service
+npm test --workspace=backend
+npm run test:unit --workspace=backend
+npm run test:integration --workspace=backend
+```
+
 ## Development Roadmap
 
 | Phase | Focus | Status |
@@ -212,8 +237,8 @@ curl http://localhost:5001/health
 | **6** | Appointment microservice | Done |
 | **7** | Frontend foundation (Vite, routing, auth, React Query) | Done |
 | **8** | Frontend features (dashboards, CRUD UI, optimistic updates) | Done |
-| **9** | Seed script, unit & integration tests | Next |
-| **10** | E2E (Playwright), Lighthouse CI | Planned |
+| **9** | Seed script, unit & integration tests | Done |
+| **10** | E2E (Playwright), Lighthouse CI | Next |
 | **11** | Production Dockerfiles, GitHub Actions | Planned |
 | **12** | Kubernetes manifests, Minikube | Planned |
 | **13** | Cloud deployment guides, API docs, real-time sync | Planned |

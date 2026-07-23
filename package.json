@@ -16,6 +16,10 @@
     "start:appointment": "npm run start --workspace=appointment-service",
     "dev:frontend": "npm run dev --workspace=frontend",
     "build:frontend": "npm run build --workspace=frontend",
+    "seed": "npm run seed --workspace=backend",
+    "test": "npm test --workspace=backend && npm test --workspace=appointment-service",
+    "test:unit": "npm run test:unit --workspace=backend && npm run test:unit --workspace=appointment-service",
+    "test:integration": "npm run test:integration --workspace=backend && npm run test:integration --workspace=appointment-service",
     "docker:up": "docker compose -f infra/docker-compose.yml up --build",
     "docker:down": "docker compose -f infra/docker-compose.yml down"
   },

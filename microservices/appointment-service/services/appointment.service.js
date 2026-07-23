@@ -4,21 +4,11 @@ const {
   getPagination,
   buildPaginationMeta,
 } = require('../utils/pagination');
+const { timeToMinutes, rangesOverlap } = require('../utils/availability');
 
 function startOfUtcDay(date) {
   const d = new Date(date);
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-}
-
-function timeToMinutes(time) {
-  const [h, m] = time.split(':').map(Number);
-  return h * 60 + m;
-}
-
-function rangesOverlap(startA, durationA, startB, durationB) {
-  const endA = startA + durationA;
-  const endB = startB + durationB;
-  return startA < endB && startB < endA;
 }
 
 async function assertAvailability({
