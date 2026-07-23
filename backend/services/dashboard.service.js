@@ -1,8 +1,9 @@
 const Patient = require('../models/Patient');
 const MedicalRecord = require('../models/MedicalRecord');
 const User = require('../models/User');
+const { getAppointmentStats } = require('./appointmentClient');
 
-async function getStatistics() {
+async function getStatistics(authorizationHeader) {
   const [
     patientTotal,
     statusAgg,
@@ -11,6 +12,7 @@ async function getStatistics() {
     doctorCount,
     nurseCount,
     adminCount,
+    appointments,
   ] = await Promise.all([
     Patient.countDocuments(),
     Patient.aggregate([
@@ -28,6 +30,7 @@ async function getStatistics() {
     User.countDocuments({ role: 'Doctor', active: true }),
     User.countDocuments({ role: 'Nurse', active: true }),
     User.countDocuments({ role: 'Admin', active: true }),
+    getAppointmentStats(authorizationHeader),
   ]);
 
   const byStatus = { Good: 0, Stable: 0, Critical: 0 };
@@ -51,11 +54,7 @@ async function getStatistics() {
       nurses: nurseCount,
       admins: adminCount,
     },
-    // Wired to appointment-service in Phase 6
-    appointments: {
-      today: 0,
-      upcoming: 0,
-    },
+    appointments,
   };
 }
 

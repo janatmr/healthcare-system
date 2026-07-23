@@ -138,7 +138,7 @@ npm run docker:down
 | Appointment Service | 5001 |
 | MongoDB | 27017 |
 
-The backend Express app connects to MongoDB on startup. Models: `User`, `Patient`, `MedicalRecord`. JWT auth, RBAC, patients, medical records, and dashboard statistics are available (Phases 3–5). Frontend and appointment-service still use Phase 1 stubs until later phases.
+The backend Express app handles auth, patients, records, and dashboard stats (Phases 3–5). Appointments run as an independent microservice on port **5001** (Phase 6). The frontend remains a Phase 1 stub until Phases 7–8.
 
 ### Auth endpoints
 
@@ -161,23 +161,37 @@ The backend Express app connects to MongoDB on startup. Models: `User`, `Patient
 | `GET/PUT/DELETE` | `/records/:id` | All staff get; Admin/Doctor mutate |
 | `GET` | `/dashboard/statistics` | Admin, Doctor, Nurse |
 
-Send `Authorization: Bearer <token>` on protected routes. List endpoints support `page`, `limit`, `search`/`status` (patients), and `patientId` (records).
+### Appointment service (`:5001`)
 
-### Run the backend locally
+| Method | Path | Access |
+|--------|------|--------|
+| `GET` | `/health` | Public |
+| `GET/POST` | `/appointments` | Staff list; Admin/Doctor create |
+| `GET` | `/appointments/doctor/:doctorId` | Admin, Doctor, Nurse |
+| `GET` | `/appointments/patient/:patientId` | Admin, Doctor, Nurse |
+| `GET/PUT/DELETE` | `/appointments/:id` | Staff get; Admin/Doctor mutate |
+| `PATCH` | `/appointments/:id/status` | Admin, Doctor |
 
-MongoDB must be running before the backend starts.
+Send `Authorization: Bearer <token>` (from backend login) on protected routes. List endpoints support `page`, `limit`, `search`/`status` (patients), and `patientId` (records).
+
+### Run locally
+
+MongoDB must be running before the APIs start.
 
 ```bash
 # Start MongoDB only
 docker compose -f infra/docker-compose.yml up -d mongodb
 
 cp backend/.env.example backend/.env
-# For local (non-Docker) runs, set:
-# MONGODB_URI=mongodb://localhost:27017/healthcare
+cp microservices/appointment-service/.env.example microservices/appointment-service/.env
+# Align JWT_SECRET in both .env files
+# Local URIs: MONGODB_URI=mongodb://localhost:27017/healthcare
+# Backend: APPOINTMENT_SERVICE_URL=http://localhost:5001
 
 npm run start:backend
-# or with reload: npm run dev:backend
+npm run start:appointment
 curl http://localhost:5000/health
+curl http://localhost:5001/health
 ```
 
 ## Development Roadmap
@@ -189,8 +203,8 @@ curl http://localhost:5000/health
 | **3** | Database models (User, Patient, MedicalRecord) | Done |
 | **4** | Authentication & authorization (JWT, RBAC) | Done |
 | **5** | Backend API: patients, records, dashboard | Done |
-| **6** | Appointment microservice | Next |
-| **7** | Frontend foundation (Vite, routing, auth, React Query) | Planned |
+| **6** | Appointment microservice | Done |
+| **7** | Frontend foundation (Vite, routing, auth, React Query) | Next |
 | **8** | Frontend features (dashboards, CRUD UI, optimistic updates) | Planned |
 | **9** | Seed script, unit & integration tests | Planned |
 | **10** | E2E (Playwright), Lighthouse CI | Planned |
