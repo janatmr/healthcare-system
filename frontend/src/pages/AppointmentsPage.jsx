@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '../lib/query';
 import toast from 'react-hot-toast';
 import Pagination from '../components/Pagination';
 import Modal from '../components/Modal';

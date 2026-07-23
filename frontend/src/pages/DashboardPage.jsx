@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery } from '../lib/query';
 import { fetchDashboardStatistics } from '../services/auth.service';
 import Loader from '../components/Loader';
 import StatusBadge from '../components/StatusBadge';

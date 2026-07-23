@@ -20,8 +20,17 @@
     "test": "npm test --workspace=backend && npm test --workspace=appointment-service",
     "test:unit": "npm run test:unit --workspace=backend && npm run test:unit --workspace=appointment-service",
     "test:integration": "npm run test:integration --workspace=backend && npm run test:integration --workspace=appointment-service",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "lighthouse": "lhci autorun --config=./lighthouserc.cjs",
     "docker:up": "docker compose -f infra/docker-compose.yml up --build",
     "docker:down": "docker compose -f infra/docker-compose.yml down"
+  },
+  "devDependencies": {
+    "@lhci/cli": "^0.14.0",
+    "@playwright/test": "^1.49.1",
+    "mongodb-memory-server": "^10.1.2",
+    "puppeteer": "^23.11.1"
   },
   "engines": {
     "node": ">=20"

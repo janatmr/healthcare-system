@@ -97,7 +97,7 @@ p {
 .brand-sub {
   margin-top: 0.25rem;
   font-size: 0.8rem;
-  opacity: 0.7;
+  color: var(--color-muted);
 }
 
 .nav-list {

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '../lib/query';
 import toast from 'react-hot-toast';
 import { fetchDashboardStatistics, registerStaff } from '../services/auth.service';
 import Loader from '../components/Loader';

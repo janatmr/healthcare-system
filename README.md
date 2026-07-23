@@ -219,11 +219,36 @@ Creates 1 Admin, 3 Doctors, 2 Nurses, 20 Patients, 20 Medical Records, and 15 Ap
 ### Tests
 
 ```bash
-npm test                      # backend + appointment-service
+npm test                      # backend + appointment-service Jest suites
 npm test --workspace=backend
 npm run test:unit --workspace=backend
 npm run test:integration --workspace=backend
 ```
+
+#### End-to-end (Playwright)
+
+First-time browser install:
+
+```bash
+npx playwright install chromium firefox webkit
+```
+
+E2E tests start an ephemeral MongoDB, seed data, and serve APIs + a production frontend preview on ports `3100` / `5100` / `5101` (so local `3000`/`5000` services are not disturbed):
+
+```bash
+npm run test:e2e             # Chromium, Firefox, WebKit
+npm run test:e2e:headed      # headed debug mode
+```
+
+Expected coverage includes auth/RBAC smoke checks and the doctor clinical workflow (register patient → dashboard → book appointment → medical record → statistics).
+
+#### Lighthouse CI
+
+```bash
+npm run lighthouse
+```
+
+Audits `/login` and authenticated `/dashboard` against thresholds: Performance ≥ 90, Accessibility ≥ 95, Best Practices ≥ 95 (SEO warned at ≥ 90). Reports write to `.lighthouseci/`.
 
 ## Development Roadmap
 
@@ -238,8 +263,8 @@ npm run test:integration --workspace=backend
 | **7** | Frontend foundation (Vite, routing, auth, React Query) | Done |
 | **8** | Frontend features (dashboards, CRUD UI, optimistic updates) | Done |
 | **9** | Seed script, unit & integration tests | Done |
-| **10** | E2E (Playwright), Lighthouse CI | Next |
-| **11** | Production Dockerfiles, GitHub Actions | Planned |
+| **10** | E2E (Playwright), Lighthouse CI | Done |
+| **11** | Production Dockerfiles, GitHub Actions | Next |
 | **12** | Kubernetes manifests, Minikube | Planned |
 | **13** | Cloud deployment guides, API docs, real-time sync | Planned |
 
