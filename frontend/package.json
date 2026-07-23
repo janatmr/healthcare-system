@@ -3,10 +3,23 @@
   "version": "0.1.0",
   "private": true,
   "description": "Hospital Management System — React frontend",
+  "type": "module",
   "scripts": {
-    "dev": "echo \"Frontend not scaffolded yet\" && exit 0",
-    "build": "echo \"Frontend not scaffolded yet\" && exit 0",
-    "preview": "echo \"Frontend not scaffolded yet\" && exit 0",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 3000",
     "test": "echo \"No tests yet\" && exit 0"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.62.0",
+    "axios": "^1.7.9",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hot-toast": "^2.4.1",
+    "react-router-dom": "^6.28.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.11"
   }
 }

@@ -1,14 +1,12 @@
-# Phase 1 stub — replaced with multi-stage Vite production build in a later phase
 FROM node:20-alpine
 
 WORKDIR /app
 
 COPY package.json ./
-RUN npm install --omit=dev || true
+RUN npm install
 
 COPY . .
 
 EXPOSE 3000
 
-# Placeholder until React/Vite app is scaffolded
-CMD ["node", "-e", "require('http').createServer((_, res) => { res.writeHead(200, {'Content-Type':'application/json'}); res.end(JSON.stringify({status:'ok',service:'frontend',phase:1})); }).listen(process.env.PORT || 3000, () => console.log('frontend stub listening'))"]
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3000"]

@@ -138,7 +138,7 @@ npm run docker:down
 | Appointment Service | 5001 |
 | MongoDB | 27017 |
 
-The backend Express app handles auth, patients, records, and dashboard stats (Phases 3–5). Appointments run as an independent microservice on port **5001** (Phase 6). The frontend remains a Phase 1 stub until Phases 7–8.
+The backend Express app handles auth, patients, records, and dashboard stats (Phases 3–5). Appointments run as an independent microservice on port **5001** (Phase 6). The React frontend foundation (Vite, auth, routing, React Query) runs on port **3000** (Phase 7); full CRUD UI is Phase 8.
 
 ### Auth endpoints
 
@@ -184,12 +184,18 @@ docker compose -f infra/docker-compose.yml up -d mongodb
 
 cp backend/.env.example backend/.env
 cp microservices/appointment-service/.env.example microservices/appointment-service/.env
-# Align JWT_SECRET in both .env files
+cp frontend/.env.example frontend/.env
+# Align JWT_SECRET in backend + appointment-service .env files
 # Local URIs: MONGODB_URI=mongodb://localhost:27017/healthcare
 # Backend: APPOINTMENT_SERVICE_URL=http://localhost:5001
+# Frontend: VITE_API_URL=http://localhost:5000
+#           VITE_APPOINTMENT_URL=http://localhost:5001
 
 npm run start:backend
 npm run start:appointment
+npm run dev:frontend
+
+# http://localhost:3000/login
 curl http://localhost:5000/health
 curl http://localhost:5001/health
 ```
@@ -204,8 +210,8 @@ curl http://localhost:5001/health
 | **4** | Authentication & authorization (JWT, RBAC) | Done |
 | **5** | Backend API: patients, records, dashboard | Done |
 | **6** | Appointment microservice | Done |
-| **7** | Frontend foundation (Vite, routing, auth, React Query) | Next |
-| **8** | Frontend features (dashboards, CRUD UI, optimistic updates) | Planned |
+| **7** | Frontend foundation (Vite, routing, auth, React Query) | Done |
+| **8** | Frontend features (dashboards, CRUD UI, optimistic updates) | Next |
 | **9** | Seed script, unit & integration tests | Planned |
 | **10** | E2E (Playwright), Lighthouse CI | Planned |
 | **11** | Production Dockerfiles, GitHub Actions | Planned |

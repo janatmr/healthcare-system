@@ -36,3 +36,7 @@ playwright-report/
 
 # Docker
 *.pid
+
+# Local verify artifacts
+backend/.memory-mongo-uri
+backend/.memory-mongo-pid
