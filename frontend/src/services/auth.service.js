@@ -18,3 +18,8 @@ export async function fetchDashboardStatistics() {
   const { data } = await api.get('/dashboard/statistics');
   return data;
 }
+
+export async function registerStaff(payload) {
+  const { data } = await api.post('/auth/register', payload);
+  return data;
+}

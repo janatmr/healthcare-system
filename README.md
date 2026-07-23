@@ -138,7 +138,7 @@ npm run docker:down
 | Appointment Service | 5001 |
 | MongoDB | 27017 |
 
-The backend Express app handles auth, patients, records, and dashboard stats (Phases 3–5). Appointments run as an independent microservice on port **5001** (Phase 6). The React frontend foundation (Vite, auth, routing, React Query) runs on port **3000** (Phase 7); full CRUD UI is Phase 8.
+The backend Express app handles auth, patients, records, and dashboard stats (Phases 3–5). Appointments run as an independent microservice on port **5001** (Phase 6). The React frontend on port **3000** includes auth, role-aware CRUD for patients/records/appointments, optimistic booking, and Admin staff registration (Phases 7–8).
 
 ### Auth endpoints
 
@@ -211,8 +211,8 @@ curl http://localhost:5001/health
 | **5** | Backend API: patients, records, dashboard | Done |
 | **6** | Appointment microservice | Done |
 | **7** | Frontend foundation (Vite, routing, auth, React Query) | Done |
-| **8** | Frontend features (dashboards, CRUD UI, optimistic updates) | Next |
-| **9** | Seed script, unit & integration tests | Planned |
+| **8** | Frontend features (dashboards, CRUD UI, optimistic updates) | Done |
+| **9** | Seed script, unit & integration tests | Next |
 | **10** | E2E (Playwright), Lighthouse CI | Planned |
 | **11** | Production Dockerfiles, GitHub Actions | Planned |
 | **12** | Kubernetes manifests, Minikube | Planned |
