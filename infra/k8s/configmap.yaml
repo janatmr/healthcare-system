@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: healthcare-config
+  namespace: healthcare
+  labels:
+    app.kubernetes.io/part-of: healthcare-system
+data:
+  NODE_ENV: "production"
+  JWT_EXPIRES_IN: "1d"
+  # Browser origins allowed by API CORS (comma-separated)
+  CORS_ORIGINS: "https://hospital.local,http://hospital.local"
+  # In-cluster MongoDB Service DNS
+  MONGODB_URI: "mongodb://mongodb:27017/healthcare"
+  # Backend → appointment microservice (Cluster DNS)
+  APPOINTMENT_SERVICE_URL: "http://appointment-service:5001"
+  BACKEND_PORT: "5000"
+  APPOINTMENT_PORT: "5001"

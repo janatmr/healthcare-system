@@ -54,9 +54,11 @@ healthcare-system/
 │   └── appointment-service/          # Independent appointment API + Dockerfile
 ├── infra/
 │   ├── docker-compose.yml            # Production-style local stack
-│   └── .env.example                  # Compose variables (JWT, CORS, VITE_*)
+│   ├── .env.example                  # Compose variables (JWT, CORS, VITE_*)
+│   └── k8s/                          # Minikube / Kubernetes manifests
 ├── scripts/
-│   └── check-secrets.js              # Blocks tracked credential/.env files
+│   ├── check-secrets.js              # Blocks tracked credential/.env files
+│   └── k8s/                          # TLS generation + kubectl apply helpers
 ├── .github/workflows/ci.yml          # Quality, E2E, Lighthouse, Docker builds
 ├── package.json                      # npm workspaces root
 ├── PROJECT_SPECIFICATION.md          # Authoritative project specification
@@ -317,6 +319,127 @@ Permissions are read-only. Superseded runs are cancelled. CI uses throwaway test
 | Image build pulls huge context | Ensure root `.dockerignore` excludes `node_modules`, `.env`, reports |
 | Playwright/Lighthouse flaky locally | Stop other stacks on `3100`/`5100`/`5101`; re-run with a clean process tree |
 
+## Kubernetes Setup (Minikube)
+
+Production-style orchestration lives in [`infra/k8s/`](infra/k8s/). Images are the Phase 11 production builds, loaded into Minikube’s Docker daemon (no registry).
+
+### Architecture
+
+| Resource | Detail |
+|----------|--------|
+| Namespace | `healthcare` |
+| Frontend | 2 replicas, NGINX `:8080`, ClusterIP |
+| Backend | 3 replicas, `:5000`, ClusterIP |
+| Appointment | 2 replicas, `:5001`, ClusterIP Service name `appointment-service` |
+| MongoDB | 1 replica + PVC, ClusterIP `mongodb` (in-cluster only) |
+| Ingress | Host `hospital.local`, TLS secret `hospital-tls` |
+
+**Ingress paths**
+
+| Path | Backend | Notes |
+|------|---------|--------|
+| `/` | frontend:8080 | SPA |
+| `/api` | backend:5000 | Rewritten to `/` (Express routes stay unprefixed) |
+| `/appointments` | appointment-service:5001 | No rewrite |
+
+**Frontend image must be rebuilt** for the cluster with:
+
+- `VITE_API_URL=https://hospital.local/api`
+- `VITE_APPOINTMENT_URL=https://hospital.local`
+
+**Internal DNS:** backend uses `http://appointment-service:5001` and `mongodb://mongodb:27017/healthcare` from ConfigMap [`infra/k8s/configmap.yaml`](infra/k8s/configmap.yaml).
+
+### Prerequisites
+
+- [Minikube](https://minikube.sigs.k8s.io/docs/start/)
+- `kubectl`
+- Docker (Minikube driver)
+- `openssl` (self-signed TLS)
+
+### Deploy
+
+```bash
+# 1) Cluster + Ingress controller
+minikube start
+minikube addons enable ingress
+
+# 2) Point Docker CLI at Minikube and build images into its daemon
+eval $(minikube docker-env)          # PowerShell: minikube docker-env | Invoke-Expression
+
+docker build -f backend/Dockerfile -t healthcare-backend:local .
+docker build -f microservices/appointment-service/Dockerfile -t healthcare-appointment:local .
+docker build -f frontend/Dockerfile \
+  --build-arg VITE_API_URL=https://hospital.local/api \
+  --build-arg VITE_APPOINTMENT_URL=https://hospital.local \
+  -t healthcare-frontend:local .
+
+# 3) Optional: override JWT (otherwise demo placeholder in app-secret.yaml is used)
+export JWT_SECRET="$(openssl rand -hex 32)"
+
+# 4) Apply manifests (ConfigMap, JWT Secret, TLS, Mongo, apps, Ingress)
+npm run k8s:apply
+# or: bash scripts/k8s/apply.sh
+
+# 5) Map hospital.local → Minikube
+# Linux/macOS:
+echo "$(minikube ip) hospital.local" | sudo tee -a /etc/hosts
+# Windows (Admin PowerShell):
+# Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$(minikube ip) hospital.local"
+```
+
+TLS material is written to `infra/k8s/certs/` (gitignored). Recreate anytime with `npm run k8s:tls`.
+
+### Verify
+
+```bash
+kubectl get pods,svc,ingress,secrets -n healthcare
+kubectl get ingress -n healthcare
+```
+
+Confirm pods are `Running`, Services have ClusterIPs, Ingress has an ADDRESS, and secrets `healthcare-jwt` + `hospital-tls` exist.
+
+```bash
+# Frontend health (accept self-signed cert)
+curl -k https://hospital.local/health
+
+# Backend via /api rewrite
+curl -k https://hospital.local/api/health
+```
+
+Open **https://hospital.local/login** in a browser (trust/continue past the self-signed warning).
+
+### Seed data (Minikube)
+
+Mongo is not published on the host. Port-forward, then seed:
+
+```bash
+kubectl port-forward -n healthcare svc/mongodb 27017:27017
+# other terminal — use the same JWT as the cluster Secret if you call APIs with host tools
+MONGODB_URI=mongodb://127.0.0.1:27017/healthcare npm run seed
+```
+
+Login: `admin@hospital.local` / `Password123!`
+
+### Troubleshooting (Kubernetes)
+
+| Symptom | Cause | Fix |
+|---------|--------|-----|
+| `ImagePullBackOff` | Image built on host Docker, not Minikube | `eval $(minikube docker-env)`, rebuild tags `healthcare-*:local`, restart pods |
+| `DOCKER_HOST=…:2375` / Minikube can’t talk to Docker | Stale Docker TCP endpoint in the shell | `unset DOCKER_HOST` (Windows Docker Desktop: `export DOCKER_HOST=npipe:////./pipe/dockerDesktopLinuxEngine`), then `minikube start` / `eval $(minikube docker-env)` |
+| NGINX 404 | Wrong Service name / hosts missing | Verify Ingress backends; ensure `hospital.local` → `minikube ip` in hosts file |
+| Connection refused | Wrong port or Service DNS | `kubectl get svc -n healthcare`; backend→appointment must use `http://appointment-service:5001` |
+| `minikube ip` times out (Windows Docker driver) | Host can’t route to the Minikube VM IP | `minikube tunnel` (admin), or `kubectl -n ingress-nginx port-forward svc/ingress-nginx-controller 8443:443` and open `https://hospital.local:8443` |
+| CORS errors in browser | Origin not allowlisted | ConfigMap `CORS_ORIGINS` includes `https://hospital.local` |
+| Frontend still calls localhost APIs | Image built without cluster VITE args | Rebuild frontend with `VITE_API_URL=https://hospital.local/api` |
+| TLS / certificate errors | Secret missing or empty | `npm run k8s:tls`; `kubectl get secret hospital-tls -n healthcare` |
+
+Tear down:
+
+```bash
+kubectl delete namespace healthcare
+# optional: minikube stop
+```
+
 ## Development Roadmap
 
 | Phase | Focus | Status |
@@ -332,8 +455,8 @@ Permissions are read-only. Superseded runs are cancelled. CI uses throwaway test
 | **9** | Seed script, unit & integration tests | Done |
 | **10** | E2E (Playwright), Lighthouse CI | Done |
 | **11** | Production Dockerfiles, GitHub Actions | Done |
-| **12** | Kubernetes manifests, Minikube | Next |
-| **13** | Cloud deployment guides, API docs, real-time sync | Planned |
+| **12** | Kubernetes manifests, Minikube | Done |
+| **13** | Cloud deployment guides, API docs, real-time sync | Next |
 
 ## Security Notes
 
@@ -344,6 +467,7 @@ Permissions are read-only. Superseded runs are cancelled. CI uses throwaway test
 - CORS uses an allowlist via `CORS_ORIGINS` (never open CORS globally)
 - API images run as non-root; frontend serves via unprivileged NGINX
 - Production dependency audit gates high+ severities (`npm run security:audit`)
+- Minikube JWT lives in Secret `healthcare-jwt`; TLS in `hospital-tls` (keys never committed)
 
 ## License
 

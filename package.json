@@ -27,7 +27,9 @@
     "security:check": "node scripts/check-secrets.js",
     "security:audit": "npm audit --omit=dev --audit-level=high",
     "docker:up": "docker compose -f infra/docker-compose.yml --env-file infra/.env up --build",
-    "docker:down": "docker compose -f infra/docker-compose.yml --env-file infra/.env down"
+    "docker:down": "docker compose -f infra/docker-compose.yml --env-file infra/.env down",
+    "k8s:tls": "bash scripts/k8s/generate-tls.sh",
+    "k8s:apply": "bash scripts/k8s/apply.sh"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

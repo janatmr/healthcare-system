@@ -1,0 +1,66 @@
+# Two Ingress objects share host hospital.local + TLS secret hospital-tls.
+# API Ingress rewrites /api/* → /* so Express routes stay at /auth, /patients, etc.
+# Main Ingress serves SPA (/) and appointment microservice (/appointments) without rewrite.
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: healthcare-api
+  namespace: healthcare
+  labels:
+    app.kubernetes.io/part-of: healthcare-system
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - hospital.local
+      secretName: hospital-tls
+  rules:
+    - host: hospital.local
+      http:
+        paths:
+          - path: /api(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 5000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: healthcare
+  namespace: healthcare
+  labels:
+    app.kubernetes.io/part-of: healthcare-system
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - hospital.local
+      secretName: hospital-tls
+  rules:
+    - host: hospital.local
+      http:
+        paths:
+          - path: /appointments
+            pathType: Prefix
+            backend:
+              service:
+                name: appointment-service
+                port:
+                  number: 5001
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 8080

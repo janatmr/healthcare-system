@@ -40,3 +40,9 @@ playwright-report/
 # Local verify artifacts
 backend/.memory-mongo-uri
 backend/.memory-mongo-pid
+
+# Minikube / Kubernetes local TLS material (never commit keys)
+infra/k8s/certs/
+*.key
+hospital.crt
+hospital.key
