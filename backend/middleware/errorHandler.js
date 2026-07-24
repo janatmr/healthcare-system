@@ -6,7 +6,7 @@ const config = require('../config');
  * Centralized error handler.
  * Production responses never include stack traces.
  */
-function errorHandler(err, req, res, next) {
+function errorHandler(err, req, res, _next) {
   let statusCode = err.statusCode || 500;
   let message = err.message || 'Internal server error';
 

@@ -69,7 +69,7 @@ export default function AppointmentsPage() {
 
   const appointments = data?.data || [];
   const pagination = data?.pagination;
-  const patients = patientsData?.data || [];
+  const patients = useMemo(() => patientsData?.data || [], [patientsData?.data]);
   const patientMap = useMemo(() => {
     const map = new Map();
     patients.forEach((p) => map.set(p._id, p));

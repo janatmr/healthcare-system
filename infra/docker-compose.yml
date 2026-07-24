@@ -1,88 +1,121 @@
-# Hospital Management System — local development stack
-# Usage (from repo root):
-#   docker compose -f infra/docker-compose.yml up --build
-#   npm run docker:up
+# Local production-style stack. Build context is the monorepo root.
+# Required: JWT_SECRET (set in infra/.env — never commit real secrets).
+# Frontend VITE_* values are build-args (embedded at image build time).
 
 services:
   mongodb:
     image: mongo:7
     container_name: healthcare-mongodb
-    restart: unless-stopped
     ports:
       - "27017:27017"
     volumes:
-      - mongodb_data:/data/db
+      - mongo_data:/data/db
     networks:
-      - healthcare-network
+      - healthcare-net
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 20s
 
-  backend:
-    build:
-      context: ../backend
-      dockerfile: Dockerfile
-    container_name: healthcare-backend
-    restart: unless-stopped
-    ports:
-      - "5000:5000"
-    environment:
-      PORT: 5000
-      MONGODB_URI: mongodb://mongodb:27017/healthcare
-      APPOINTMENT_SERVICE_URL: http://appointment-service:5001
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
-      NODE_ENV: development
-    depends_on:
-      mongodb:
-        condition: service_healthy
-    networks:
-      - healthcare-network
-
   appointment-service:
     build:
-      context: ../microservices/appointment-service
-      dockerfile: Dockerfile
-    container_name: healthcare-appointment-service
-    restart: unless-stopped
+      context: ..
+      dockerfile: microservices/appointment-service/Dockerfile
+    image: healthcare-appointment:local
+    container_name: healthcare-appointment
     ports:
       - "5001:5001"
     environment:
+      NODE_ENV: production
       PORT: 5001
       MONGODB_URI: mongodb://mongodb:27017/healthcare
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
-      NODE_ENV: development
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in infra/.env}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
     depends_on:
       mongodb:
         condition: service_healthy
     networks:
-      - healthcare-network
+      - healthcare-net
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:5001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  backend:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    image: healthcare-backend:local
+    container_name: healthcare-backend
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      MONGODB_URI: mongodb://mongodb:27017/healthcare
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in infra/.env}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
+      APPOINTMENT_SERVICE_URL: http://appointment-service:5001
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      appointment-service:
+        condition: service_healthy
+    networks:
+      - healthcare-net
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:5000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
 
   frontend:
     build:
-      context: ../frontend
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:5000}
+        VITE_APPOINTMENT_URL: ${VITE_APPOINTMENT_URL:-http://localhost:5001}
+    image: healthcare-frontend:local
     container_name: healthcare-frontend
-    restart: unless-stopped
     ports:
-      - "3000:3000"
-    environment:
-      PORT: 3000
-      VITE_API_URL: http://localhost:5000
-      VITE_APPOINTMENT_URL: http://localhost:5001
-      NODE_ENV: development
+      - "3000:8080"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+      appointment-service:
+        condition: service_healthy
     networks:
-      - healthcare-network
+      - healthcare-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
 volumes:
-  mongodb_data:
-    name: healthcare-mongodb-data
+  mongo_data:
 
 networks:
-  healthcare-network:
-    name: healthcare-network
+  healthcare-net:
     driver: bridge

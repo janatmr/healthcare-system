@@ -1,0 +1,43 @@
+# Dependencies and caches
+node_modules
+**/node_modules
+.npm
+.cache
+**/.cache
+
+# Environment and secrets
+.env
+.env.*
+!**/.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# VCS / IDE
+.git
+.github
+.cursor
+.idea
+.vscode
+**/.DS_Store
+**/Thumbs.db
+
+# Build and test artifacts
+**/dist
+**/build
+**/coverage
+.playwright
+test-results
+playwright-report
+.lighthouseci
+**/npm-debug.log*
+**/*.log
+
+# Local verify / memory mongo
+backend/.memory-mongo-uri
+backend/.memory-mongo-pid
+
+# Docs / local agent artifacts (not needed in images)
+*.md
+agent-transcripts
+infra/k8s

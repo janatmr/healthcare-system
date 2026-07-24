@@ -48,13 +48,16 @@ Services communicate over REST. No service may access another service’s databa
 
 ```
 healthcare-system/
-├── backend/                          # Express API (MVC)
-├── frontend/                         # React + Vite client
+├── backend/                          # Express API (MVC) + production Dockerfile
+├── frontend/                         # React + Vite client + NGINX Dockerfile
 ├── microservices/
-│   └── appointment-service/          # Independent appointment API
+│   └── appointment-service/          # Independent appointment API + Dockerfile
 ├── infra/
-│   ├── docker-compose.yml            # Local multi-container stack
-│   └── .env.example
+│   ├── docker-compose.yml            # Production-style local stack
+│   └── .env.example                  # Compose variables (JWT, CORS, VITE_*)
+├── scripts/
+│   └── check-secrets.js              # Blocks tracked credential/.env files
+├── .github/workflows/ci.yml          # Quality, E2E, Lighthouse, Docker builds
 ├── package.json                      # npm workspaces root
 ├── PROJECT_SPECIFICATION.md          # Authoritative project specification
 └── README.md
@@ -103,24 +106,28 @@ cp microservices/appointment-service/.env.example microservices/appointment-serv
 
 | Package | Key variables |
 |---------|----------------|
-| Backend | `PORT`, `JWT_SECRET`, `MONGODB_URI`, `APPOINTMENT_SERVICE_URL` |
-| Frontend | `VITE_API_URL` |
-| Appointment Service | `PORT`, `JWT_SECRET`, `MONGODB_URI` |
+| Backend | `PORT`, `JWT_SECRET`, `MONGODB_URI`, `APPOINTMENT_SERVICE_URL`, `CORS_ORIGINS` |
+| Frontend | `VITE_API_URL`, `VITE_APPOINTMENT_URL` (build-time for Vite / Docker) |
+| Appointment Service | `PORT`, `JWT_SECRET`, `MONGODB_URI`, `CORS_ORIGINS` |
+| Compose (`infra/.env`) | `JWT_SECRET` (required), `CORS_ORIGINS`, `VITE_API_URL`, `VITE_APPOINTMENT_URL` |
 
-**Docker networking:** inside Compose, use service names (`mongodb`, `appointment-service`), not `localhost`.
+**Docker networking:** containers talk via service names (`mongodb`, `appointment-service`, `backend`). Browser clients use host URLs (`localhost:5000` / `5001`) baked into the frontend image via Vite build args.
 
 ## Running with Docker
 
-Start the full local stack (frontend, backend, appointment-service, MongoDB):
+Images are multi-stage production builds (Node 20 Alpine APIs + unprivileged NGINX for the SPA). Compose requires a real `JWT_SECRET`.
 
 ```bash
+cp infra/.env.example infra/.env
+# Edit JWT_SECRET to a long random value before sharing the stack
+
 npm run docker:up
 ```
 
 Or:
 
 ```bash
-docker compose -f infra/docker-compose.yml up --build
+docker compose -f infra/docker-compose.yml --env-file infra/.env up --build
 ```
 
 Stop the stack:
@@ -129,14 +136,40 @@ Stop the stack:
 npm run docker:down
 ```
 
+### Production image architecture
+
+| Image | Build | Runtime |
+|-------|--------|---------|
+| `backend` | `npm ci --workspace=backend --omit=dev` from root lockfile | Non-root Node, `GET /health` |
+| `appointment-service` | Same pattern for appointment workspace | Non-root Node, `GET /health` |
+| `frontend` | Vite production build with `VITE_*` **build args** | `nginxinc/nginx-unprivileged` on port **8080**, SPA `try_files`, `/health` |
+
+Build a single image from the monorepo root:
+
+```bash
+docker build -f backend/Dockerfile -t healthcare-backend:local .
+docker build -f microservices/appointment-service/Dockerfile -t healthcare-appointment:local .
+docker build -f frontend/Dockerfile \
+  --build-arg VITE_API_URL=http://localhost:5000 \
+  --build-arg VITE_APPOINTMENT_URL=http://localhost:5001 \
+  -t healthcare-frontend:local .
+```
+
 ### Default ports
 
-| Service | Host port |
-|---------|-----------|
-| Frontend | 3000 |
-| Backend | 5000 |
-| Appointment Service | 5001 |
-| MongoDB | 27017 |
+| Service | Host port | Container |
+|---------|-----------|-----------|
+| Frontend | 3000 | NGINX **8080** (unprivileged) |
+| Backend | 5000 | 5000 |
+| Appointment Service | 5001 | 5001 |
+| MongoDB | 27017 | 27017 (published for local Compose; cloud lockdown later) |
+
+Health checks gate startup order (`depends_on: condition: service_healthy`). After the stack is up, seed once from the host (Mongo published on `27017`):
+
+```bash
+npm run seed
+# Login at http://localhost:3000/login — admin@hospital.local / Password123!
+```
 
 The backend Express app handles auth, patients, records, and dashboard stats (Phases 3–5). Appointments run as an independent microservice on port **5001** (Phase 6). The React frontend on port **3000** includes auth, role-aware CRUD for patients/records/appointments, optimistic booking, and Admin staff registration (Phases 7–8).
 
@@ -216,6 +249,16 @@ Creates 1 Admin, 3 Doctors, 2 Nurses, 20 Patients, 20 Medical Records, and 15 Ap
 | `doctor1@hospital.local` … `doctor3@hospital.local` | Doctor | `Password123!` |
 | `nurse1@hospital.local`, `nurse2@hospital.local` | Nurse | `Password123!` |
 
+### Quality & security gates
+
+```bash
+npm run security:check        # reject tracked .env / credential files
+npm run security:audit        # npm audit --omit=dev --audit-level=high
+npm run lint                  # ESLint (backend, appointment-service, frontend, tests)
+npm run build:frontend
+npm test                      # backend + appointment-service Jest suites
+```
+
 ### Tests
 
 ```bash
@@ -250,6 +293,30 @@ npm run lighthouse
 
 Audits `/login` and authenticated `/dashboard` against thresholds: Performance ≥ 90, Accessibility ≥ 95, Best Practices ≥ 95 (SEO warned at ≥ 90). Reports write to `.lighthouseci/`.
 
+### Continuous Integration (GitHub Actions)
+
+Workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — runs on pushes and pull requests to `main`.
+
+| Job | What it does |
+|-----|----------------|
+| `quality` | `npm ci`, secret check, high-severity prod audit, ESLint, frontend build, Jest |
+| `e2e` | Playwright Chromium/Firefox/WebKit against the ephemeral Mongo stack; uploads traces on failure |
+| `lighthouse` | Authenticated `/login` + `/dashboard` audits; uploads `.lighthouseci/` even when assertions fail |
+| `docker` | After all gates pass, Buildx builds the three images (**no registry push**) |
+
+Permissions are read-only. Superseded runs are cancelled. CI uses throwaway test JWT/credentials and never echoes medical payloads.
+
+### Troubleshooting (Docker / CI)
+
+| Symptom | Likely fix |
+|---------|------------|
+| Compose fails with `JWT_SECRET must be set` | Copy `infra/.env.example` → `infra/.env` and set a secret |
+| Frontend calls wrong API host | Rebuild frontend with correct `VITE_*` **build args** (not runtime env) |
+| CORS blocked from browser | Set `CORS_ORIGINS=http://localhost:3000` (or your UI origin) in Compose env |
+| Login fails after `docker:up` | Run `npm run seed` against `mongodb://localhost:27017/healthcare` |
+| Image build pulls huge context | Ensure root `.dockerignore` excludes `node_modules`, `.env`, reports |
+| Playwright/Lighthouse flaky locally | Stop other stacks on `3100`/`5100`/`5101`; re-run with a clean process tree |
+
 ## Development Roadmap
 
 | Phase | Focus | Status |
@@ -264,16 +331,19 @@ Audits `/login` and authenticated `/dashboard` against thresholds: Performance �
 | **8** | Frontend features (dashboards, CRUD UI, optimistic updates) | Done |
 | **9** | Seed script, unit & integration tests | Done |
 | **10** | E2E (Playwright), Lighthouse CI | Done |
-| **11** | Production Dockerfiles, GitHub Actions | Next |
-| **12** | Kubernetes manifests, Minikube | Planned |
+| **11** | Production Dockerfiles, GitHub Actions | Done |
+| **12** | Kubernetes manifests, Minikube | Next |
 | **13** | Cloud deployment guides, API docs, real-time sync | Planned |
 
 ## Security Notes
 
 - Secrets and connection strings come from environment variables only
 - `.env` is gitignored; only `.env.example` templates are committed
+- `npm run security:check` fails CI if real credential files are tracked
 - User passwords are hashed with bcrypt on save; JWTs use `JWT_SECRET` / `JWT_EXPIRES_IN`
-- CORS will use an allowlist (never open CORS globally)
+- CORS uses an allowlist via `CORS_ORIGINS` (never open CORS globally)
+- API images run as non-root; frontend serves via unprivileged NGINX
+- Production dependency audit gates high+ severities (`npm run security:audit`)
 
 ## License
 
@@ -283,5 +353,5 @@ Proprietary — all rights reserved unless otherwise stated.
 
 1. Implement only the current approved phase
 2. Follow the specification in `PROJECT_SPECIFICATION.md`
-3. Do not merge failing CI builds (CI arrives in a later phase)
+3. Do not merge failing CI builds (quality, E2E, Lighthouse, Docker)
 4. Prefer small, reviewable changes over large dumps of unrelated code
