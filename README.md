@@ -19,6 +19,8 @@ The system replaces paper-based hospital workflows with a secure digital platfor
 
 ## Architecture
 
+**Local (Docker Compose)**
+
 ```mermaid
 flowchart LR
     Browser --> Frontend
@@ -34,24 +36,39 @@ flowchart LR
     end
 ```
 
+**Cloud (Netlify + Vercel + Atlas)**
+
+```mermaid
+flowchart LR
+    Browser -->|"HTTPS"| Netlify
+    Netlify -->|"JWT"| BackendVercel
+    Netlify -->|"JWT"| AppointmentVercel
+    BackendVercel -->|"service JWT"| AppointmentVercel
+    BackendVercel --> Atlas
+    AppointmentVercel --> Atlas
+```
+
 | Layer | Role |
 |-------|------|
-| React Frontend | Reception desk — UI for staff workflows |
-| Backend API | Medical staff logic — auth, patients, records, dashboard |
-| Appointment Service | Independent appointment department (scalable separately) |
-| MongoDB | Patient archive and persistence |
-| Docker / Kubernetes | Runtime and orchestration |
+| React Frontend | Reception desk — UI for staff workflows (Netlify in cloud) |
+| Backend API | Medical staff logic — auth, patients, records, dashboard (Vercel) |
+| Appointment Service | Independent appointment department (separate Vercel project) |
+| MongoDB | Patient archive — local Docker or **MongoDB Atlas** |
+| Docker / Kubernetes | Local / cluster runtime and orchestration |
 
-Services communicate over REST. No service may access another service’s database directly.
+Services communicate over REST. No service may access another service’s database directly. The SPA uses TanStack Query **polling** (~15s) so lists and dashboard stats refresh across concurrent users without a manual reload.
 
 ## Folder Structure
 
 ```
 healthcare-system/
-├── backend/                          # Express API (MVC) + production Dockerfile
+├── backend/                          # Express API + Vercel adapter (api/) + Dockerfile
 ├── frontend/                         # React + Vite client + NGINX Dockerfile
 ├── microservices/
-│   └── appointment-service/          # Independent appointment API + Dockerfile
+│   └── appointment-service/          # Appointment API + Vercel adapter + Dockerfile
+├── docs/
+│   ├── DEPLOYMENT.md                 # Netlify / Vercel / Atlas production guide
+│   └── API.md                        # Full endpoint reference
 ├── infra/
 │   ├── docker-compose.yml            # Production-style local stack
 │   ├── .env.example                  # Compose variables (JWT, CORS, VITE_*)
@@ -60,6 +77,7 @@ healthcare-system/
 │   ├── check-secrets.js              # Blocks tracked credential/.env files
 │   └── k8s/                          # TLS generation + kubectl apply helpers
 ├── .github/workflows/ci.yml          # Quality, E2E, Lighthouse, Docker builds
+├── netlify.toml                      # Frontend Netlify build + SPA redirects
 ├── package.json                      # npm workspaces root
 ├── PROJECT_SPECIFICATION.md          # Authoritative project specification
 └── README.md
@@ -201,6 +219,7 @@ The backend Express app handles auth, patients, records, and dashboard stats (Ph
 | Method | Path | Access |
 |--------|------|--------|
 | `GET` | `/health` | Public |
+| `GET` | `/appointments/stats/summary` | Admin, Doctor, Nurse |
 | `GET/POST` | `/appointments` | Staff list; Admin/Doctor create |
 | `GET` | `/appointments/doctor/:doctorId` | Admin, Doctor, Nurse |
 | `GET` | `/appointments/patient/:patientId` | Admin, Doctor, Nurse |
@@ -208,6 +227,8 @@ The backend Express app handles auth, patients, records, and dashboard stats (Ph
 | `PATCH` | `/appointments/:id/status` | Admin, Doctor |
 
 Send `Authorization: Bearer <token>` (from backend login) on protected routes. List endpoints support `page`, `limit`, `search`/`status` (patients), and `patientId` (records).
+
+Full request/response examples, validation rules, and status codes: **[docs/API.md](docs/API.md)**.
 
 ### Run locally
 
@@ -440,6 +461,44 @@ kubectl delete namespace healthcare
 # optional: minikube stop
 ```
 
+## Cloud Deployment (Netlify / Vercel / Atlas)
+
+Step-by-step production guide (Atlas setup, dual Vercel APIs, Netlify SPA, env matrices, troubleshooting, screenshot placeholders):
+
+→ **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**
+
+**Live demo (Phase 13):**
+
+| Layer | URL |
+|-------|-----|
+| Frontend (Netlify) | https://stately-sunflower-3fdd50.netlify.app |
+| Backend API (Vercel) | https://backend-two-murex-65.vercel.app |
+| Appointment API (Vercel) | https://appointment-service-phi.vercel.app |
+| Database | MongoDB Atlas cluster `healthcare` (shared by both APIs) |
+
+Login after seed: `admin@hospital.local` / `Password123!`
+
+Quick outline:
+
+1. Create MongoDB Atlas cluster + DB user + network access; seed with `MONGODB_URI=… npm run seed`
+2. Deploy **appointment-service** Vercel project (`microservices/appointment-service`, `vercel.json`)
+3. Deploy **backend** Vercel project (`backend`) with `APPOINTMENT_SERVICE_URL` pointing at step 2
+4. Deploy **frontend** on Netlify (`netlify.toml`) with `VITE_API_URL` / `VITE_APPOINTMENT_URL`
+5. Set `CORS_ORIGINS` on both APIs to the Netlify origin; redeploy APIs
+
+Serverless adapters: `backend/api/index.js`, `microservices/appointment-service/api/index.js` (Docker/K8s still use `server.js`).  
+Tip: if `vercel` install fails inside the npm workspaces tree, deploy from a standalone copy of the package directory (see deployment guide).
+
+## API Documentation
+
+Complete endpoint reference (auth, patients, records, dashboard, appointments):
+
+→ **[docs/API.md](docs/API.md)**
+
+## Real-time synchronization
+
+Cross-user updates use **React Query polling** (`refetchInterval` 15s in `frontend/src/lib/query.js`), which the specification allows as an alternative to WebSockets and works with serverless Vercel. Mutations still invalidate caches immediately for the acting browser session.
+
 ## Development Roadmap
 
 | Phase | Focus | Status |
@@ -456,7 +515,19 @@ kubectl delete namespace healthcare
 | **10** | E2E (Playwright), Lighthouse CI | Done |
 | **11** | Production Dockerfiles, GitHub Actions | Done |
 | **12** | Kubernetes manifests, Minikube | Done |
-| **13** | Cloud deployment guides, API docs, real-time sync | Next |
+| **13** | Cloud deployment guides, API docs, real-time sync | Done |
+
+## Future Improvements
+
+- Horizontal Pod Autoscaler (HPA) and cert-manager on Kubernetes
+- Registry push + GitOps continuous delivery for cloud clusters
+- WebSocket/SSE event bus for lower-latency sync than polling
+- OpenAPI/Swagger codegen from route validators
+- Appointment service private networking (no public browser CORS when proxied)
+
+## Credits
+
+Built incrementally against `PROJECT_SPECIFICATION.md` as a learning-oriented enterprise hospital platform (Node.js, React, MongoDB, Docker, Kubernetes, Netlify, Vercel, Atlas).
 
 ## Security Notes
 

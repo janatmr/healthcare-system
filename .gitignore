@@ -46,3 +46,10 @@ infra/k8s/certs/
 *.key
 hospital.crt
 hospital.key
+
+# Cloud provider local link state (never commit tokens)
+.vercel/
+.vercel
+.vercelignore
+.netlify/
+.netlify

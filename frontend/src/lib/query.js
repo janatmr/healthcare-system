@@ -4,12 +4,18 @@ import {
   useQuery as useQueryBase,
 } from '@tanstack/react-query';
 
+/** Cross-user sync interval (Phase 13). Spec allows polling as an alternative to WebSockets. */
+export const SYNC_REFETCH_INTERVAL_MS = 15_000;
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
-      refetchOnWindowFocus: false,
-      staleTime: 30_000,
+      staleTime: 10_000,
+      // Keep lists/stats fresh across concurrent users without a manual refresh
+      refetchInterval: SYNC_REFETCH_INTERVAL_MS,
+      refetchIntervalInBackground: false,
+      refetchOnWindowFocus: true,
     },
   },
 });
